@@ -1,2 +1,3 @@
-# cfc_iris
-Unified Identity Platform
+# README
+
+CFC's Unified Identity Platform
