@@ -1,7 +1,9 @@
+require_relative '../models/api_key'
+
 class UsersController < ApplicationController
   before_action :set_user, only: [:show, :update, :destroy]
 
-  before_action :verify_api_token, only: []
+  before_action :verify_api_token, only: [:test]
 
   ## GET /users
   #def index
@@ -40,6 +42,10 @@ class UsersController < ApplicationController
   #  @user.destroy
   #end
 
+  def test
+    render json: { status: "good job!" }
+  end
+
   def generate_new_api_key
   end
 
@@ -47,9 +53,9 @@ class UsersController < ApplicationController
   end
 
   def verify_api_token
-    token = verify_api_token_params[:token]
+    token = verify_api_token_param
 
-    return head :forbidden unless ApiKey.find_by(:token, token)
+    return head :forbidden unless ApiKey.find_by(token: token)
   end
 
   private
@@ -63,7 +69,7 @@ class UsersController < ApplicationController
       params.require(:user).permit(:name, :email)
     end
 
-    def verify_api_token_params
+    def verify_api_token_param
       params.require(:token)
     end
 end
