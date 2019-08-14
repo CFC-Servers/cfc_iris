@@ -3,6 +3,7 @@ require_relative 'application'
 
 # Initialize the Rails application.
 Rails.application.initialize!
+Rails.application.eager_load!
 
 ActionMailer::Base.smtp_settings = {
   user_name: Rails.application.credentials.sendgrid[:username],
