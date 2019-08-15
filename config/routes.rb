@@ -1,5 +1,7 @@
 Rails.application.routes.draw do
-  resources :users
+  namespace :api do
+    resources :users
 
-  post "test", to: "users#test"
+    post "test", to: "users#test"
+  end
 end
