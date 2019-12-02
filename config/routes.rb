@@ -1,7 +1,5 @@
-Rails.application.routes.draw do
-  namespace :api do
-    resources :users
+# frozen_string_literal: true
 
-    post "test", to: "users#test"
-  end
+Rails.application.routes.draw do
+  get 'api/callbacks/discord', to: 'callbacks#receive_discord_callback'
 end
