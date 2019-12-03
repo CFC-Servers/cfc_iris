@@ -44,7 +44,7 @@ class CallbacksController < ApplicationController
     error_codes.push('discord-missing-steam') if error_codes.empty?
 
     error_codes = error_codes.join(',')
-    redirect_to "#{FAILURE_URL}?error=#{error_codes}"
+    redirect_to "#{FAILURE_URL}?errors=#{error_codes}"
   end
 
   def receive_cfc_bot_callback
