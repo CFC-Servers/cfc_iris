@@ -6,11 +6,15 @@ API_ENDPOINT = 'https://discordapp.com/api/v6'
 CLIENT_ID = '650800239157968896'
 CLIENT_SECRET = Rails.application.credentials.client_secret
 REDIRECT_URL = 'https://iris.cfcservers.org/api/callbacks/discord'
+CFC_BOT_TOKEN = Rails.application.credentials.cfc_bot_token
 
 SUCCESS_URL = 'https://cfcservers.org/link/success'
 FAILURE_URL = 'https://cfcservers.org/link/failure'
 
 class CallbacksController < ApplicationController
+  before_action :validate_discord_callback, only: [:receive_discord_callback]
+  before_action :validate_cfc_bot_callback, only: [:receive_cfc_bot_callback]
+
   def receive_discord_callback
     code = params['code']
 
@@ -96,5 +100,22 @@ class CallbacksController < ApplicationController
             .get('https://discordapp.com/api/users/@me/connections')
 
     r.parse
+  end
+
+  def validate_discord_callback
+    is_valid = [
+      request&.referrer&.start_with?('https://discordapp.com'),
+      params['code'].present? && params['code'].length == 30
+    ]
+
+    render status: :unauthorized unless is_valid.all?
+  end
+
+  def validate_cfc_bot_callback
+    is_valid = [
+      request.form['token'] == CFC_BOT_TOKEN
+    ]
+
+    render status: :unauthorized unless is_valid.all?
   end
 end
