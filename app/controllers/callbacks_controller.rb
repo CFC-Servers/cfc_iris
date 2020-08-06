@@ -103,8 +103,13 @@ class CallbacksController < ApplicationController
   end
 
   def validate_discord_callback
+    Rails.logger.info request.referrer
+    Rails.logger.info request.referrer
+    Rails.logger.info request.referrer
+    Rails.logger.info request.referrer
+
     is_valid = [
-      request&.referrer&.start_with?('https://discordapp.com'),
+      request&.referrer&.start_with?('https://discord.com'),
       params['code'].present? && params['code'].length == 30
     ]
 
