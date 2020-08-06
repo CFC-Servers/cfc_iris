@@ -2,7 +2,7 @@
 
 require 'http'
 
-API_ENDPOINT = 'https://discordapp.com/api/v6'
+API_ENDPOINT = 'https://discord.com/api/v6'
 CLIENT_ID = '650800239157968896'
 CLIENT_SECRET = Rails.application.credentials.client_secret
 REDIRECT_URL = 'https://iris.cfcservers.org/api/callbacks/discord'
@@ -90,21 +90,27 @@ class CallbacksController < ApplicationController
 
   def get_user_info(token)
     r = HTTP.auth("Bearer #{token}")
-            .get('https://discordapp.com/api/users/@me')
+            .get('https://discord.com/api/users/@me')
 
     r.parse
   end
 
   def get_user_connections(token)
     r = HTTP.auth("Bearer #{token}")
-            .get('https://discordapp.com/api/users/@me/connections')
+            .get('https://discord.com/api/users/@me/connections')
 
     r.parse
   end
 
   def validate_discord_callback
+    Rails.logger.info "Validating discord callback"
+    Rails.logger.info request.referrer
+    Rails.logger.info request.referrer
+    Rails.logger.info request.referrer
+    Rails.logger.info request.referrer
+
     is_valid = [
-      request&.referrer&.start_with?('https://discordapp.com'),
+      request&.referrer&.start_with?('https://discord.com'),
       params['code'].present? && params['code'].length == 30
     ]
 
