@@ -27,8 +27,12 @@ class CallbacksController < ApplicationController
 
     user_connections = get_user_connections(token)
     user_connections.each do |connection|
+      Rails.logger.info connection
       next unless connection['type'] == 'steam'
-      next unless connection['verified']
+
+      is_verified = connection['verified']
+      error_codes.push('steam-not-verified') unless is_verified
+      break unless is_verified
 
       steam_id = connection['id']
 
