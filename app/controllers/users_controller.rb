@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-ALLOWED_PLATFORMS = %w[steam discord]
+
 class UsersController < ApplicationController
   def find_user
     platforms = params.permit(:steam, :discord)
