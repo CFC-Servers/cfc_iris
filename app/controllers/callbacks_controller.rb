@@ -36,15 +36,17 @@ class CallbacksController < ApplicationController
 
       steam_id = connection['id']
 
-      steam_id_used = User.find_by(steam_id: steam_id)
-      discord_id_used = User.find_by(discord_id: discord_id)
+      steam_id_used = Identity.find_by(platform: 'steam', identifier: steam_id)
+      discord_id_used = Identity.find_by(platform: 'discord', identifier: discord_id)
 
       error_codes.push('used-steam-id') if steam_id_used
       error_codes.push('used-discord-id') if discord_id_used
 
       break if steam_id_used || discord_id_used
 
-      User.create(steam_id: steam_id, discord_id: discord_id)
+      new_user = User.create
+      Identity.create(user_id: new_user.id, platform: 'steam', identifier: steam_id)
+      Identity.create(user_id: new_user.id, platform: 'discord', identifier: discord_id)
 
       return redirect_to SUCCESS_URL
     end
@@ -61,15 +63,17 @@ class CallbacksController < ApplicationController
 
     error_codes = []
 
-    steam_id_used = User.find_by(steam_id: steam_id)
-    discord_id_used = User.find_by(discord_id: discord_id)
+    steam_id_used = Identity.find_by(platform: 'steam', identifier: steam_id)
+    discord_id_used = Identity.find_by(platform: 'discord', identifier: discord_id)
 
     error_codes.push('used-steam-id') if steam_id_used
     error_codes.push('used-discord-id') if discord_id_used
 
     render json: { status: 'failure', errors: error_codes } if error_codes.any?
 
-    User.create(steam_id: steam_id, discord_id: discord_id)
+    new_user = User.create
+    Identity.create(user_id: new_user.id, platform: 'steam', identifier: steam_id)
+    Identity.create(user_id: new_user.id, platform: 'discord', identifier: discord_id)
 
     render json: { status: 'success' }
   end
