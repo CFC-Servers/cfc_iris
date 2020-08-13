@@ -6,9 +6,16 @@ class UsersController < ApplicationController
     platforms.each_pair do |platform, identifier|
       identity = Identity.find_by(platform: platform, identifier: identifier)
       if identity
-        return render json: identity.user.as_json(include: :identities)
+        return render json: identity.user.as_json(include: [:identities, :ranks])
       end
     end
     render plain: 'User not found', status: 404
+  end
+
+  def get
+    user = User.find_by(id: params[:id])
+    return render plain: 'User not found', status: 404 unless user
+
+    render json: user.as_json(include: [:identities, :ranks])
   end
 end
