@@ -10,11 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2020_08_14_175116) do
-
-  create_table "helpme", id: false, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci", force: :cascade do |t|
-    t.integer "test"
-  end
+ActiveRecord::Schema.define(version: 2020_08_14_203543) do
 
   create_table "identities", options: "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.string "platform"
@@ -31,7 +27,7 @@ ActiveRecord::Schema.define(version: 2020_08_14_175116) do
     t.bigint "user_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["name", "realm", "user_id"], name: "index_ranks_on_name_and_realm_and_user_id", unique: true
+    t.index ["realm", "user_id"], name: "index_ranks_on_realm_and_user_id", unique: true
     t.index ["user_id"], name: "index_ranks_on_user_id"
   end
 
