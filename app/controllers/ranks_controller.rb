@@ -14,7 +14,7 @@ class RanksController < ApplicationController
       rank_rows << {name: group, user_id: identity.user_id, realm: realm}
     end
 
-    Rank.import rank_rows, on_duplicate_key_update: [:name]
+    Rank.import rank_rows, on_duplicate_key_update: [:name], batch_size: 10000
 
     render json: {status: 'success'}, status: 201
   end
