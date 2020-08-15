@@ -14,8 +14,8 @@ class RanksController < ApplicationController
       rank_rows << {name: group, user_id: identity.user_id, realm: realm}
     end
 
-    Rank.import rank_rows, on_duplicate_key_update: [:name] unless rank_rows.length == 0
+    Rank.import rank_rows, on_duplicate_key_update: [:name]
 
-    render plain: 'Ranks updated', status: 202
+    render json: {status: 'success'}, status: 201
   end
 end
