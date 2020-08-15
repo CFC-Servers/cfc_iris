@@ -9,7 +9,7 @@ class UsersController < ApplicationController
         return render json: identity.user.as_json(include: [:identities, :ranks])
       end
     end
-    render plain: 'User not found', status: 404
+    render json: {error: 'User not found'}, status: 404
   end
 
   def get
