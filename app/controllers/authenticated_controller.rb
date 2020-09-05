@@ -7,7 +7,7 @@ class AuthenticatedController < ApplicationController
 
   def authenticate
     token = request.headers['Authorization']&.split&.last
-    existing = ApiToken.find_by(id: token)
+    existing = ApiToken.find_by(key: token)
 
     render head: :unauthorized unless existing
   end
