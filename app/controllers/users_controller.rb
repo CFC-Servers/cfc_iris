@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class UsersController < ApplicationController
+class UsersController < AuthenticatedController
   def find_user
     platforms = params.permit(:steam, :discord)
     platforms.each_pair do |platform, identifier|
