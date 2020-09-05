@@ -4,7 +4,7 @@ class AuthenticatedController < ApplicationController
   private
 
   def authenticate
-    token = request.headers["Authentication"]
+    token = request.headers["Authorization"]&.split.last
     existing = ApiToken.where(key: token)
 
     unless existing
