@@ -1,14 +1,14 @@
+# frozen_string_literal: true
+
 class AuthenticatedController < ApplicationController
   before_action :authenticate
 
   private
 
   def authenticate
-    token = request.headers["Authorization"]&.split.last
-    existing = ApiToken.find_by(key: token)
+    token = request.headers['Authorization']&.split&.last
+    existing = ApiToken.find_by(id: token)
 
-    unless existing
-      render head: :unauthorized
-    end
+    render head: :unauthorized unless existing
   end
 end
