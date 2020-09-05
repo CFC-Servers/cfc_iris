@@ -1,5 +1,5 @@
 
-class RanksController < ApplicationController
+class RanksController < AuthenticatedController
   def update_ranks
     params.require [:users, :realm, :platform]
     users = params[:users]
