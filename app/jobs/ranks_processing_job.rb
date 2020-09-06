@@ -1,16 +1,34 @@
+# frozen_string_literal: true
+
 class RanksProcessingJob < ApplicationJob
   queue_as :default
 
   def perform(users, realm, platform)
+    user_rows = []
     rank_rows = []
 
-    Identity.where(identifier: users.keys, platform: platform).find_each do |identity|
-      group = users[identity.identifier]['group']
-      next unless group
+    user_identities = Identity.where(identifier: users.keys, platform: platform)
+                              .pluck(%i[identifier user_id])
+                              .to_h
 
-      rank_rows << { name: group, user_id: identity.user_id, realm: realm }
+    users.each do |identifier, group|
+      user_id = user_identities[identifier]
+      rank = Rank.new(name: group, realm: realm)
+
+      if user_id.nil?
+        user = User.new
+        identity = Identity.new(identifier: identifier, platform: platform)
+
+        user.identities << identity
+        user.ranks << rank
+        user_rows << user
+      else
+        rank.user_id = user_id
+        rank_rows << rank
+      end
     end
 
-    Rank.import rank_rows, on_duplicate_key_update: [:name], batch_size: 10_000
+    User.import user_rows, recursive: true, batch_size: 5_000
+    Rank.import rank_rows, batch_size: 5_000
   end
 end

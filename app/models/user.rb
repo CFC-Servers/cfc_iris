@@ -1,4 +1,12 @@
 class User < ApplicationRecord
-  has_many :identities
-  has_many :ranks
+  has_many :identities, dependent: :destroy
+  has_many :ranks, dependent: :destroy
+
+  private
+
+  def consume_users!(*users)
+    identities = users.map { |user| user.identities }
+    identities.update_all(user_id: self.id)
+    users.destroy_all
+  end
 end
