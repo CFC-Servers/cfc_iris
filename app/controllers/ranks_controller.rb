@@ -1,21 +1,14 @@
 
 class RanksController < AuthenticatedController
   def update_ranks
-    params.require [:users, :realm, :platform]
+    params.require %i[users realm platform]
     users = params[:users]
     realm = params[:realm]
     platform = params[:platform]
 
-    rank_rows = []
-    Identity.where(identifier: users.keys, platform: platform).find_each do |identity|
-      group = users[identity.identifier]['group']
-      next unless group
+    # TODO: Validate this data and raise if problem
+    RanksProcessingJob.perform_later(users, realm, platform)
 
-      rank_rows << {name: group, user_id: identity.user_id, realm: realm}
-    end
-
-    Rank.import rank_rows, on_duplicate_key_update: [:name], batch_size: 10000
-
-    render json: {status: 'success'}, status: 201
+    render json: { status: 'success' }, status: 201
   end
 end
