@@ -2,80 +2,90 @@
 
 require 'http'
 
-API_ENDPOINT = 'https://discord.com/api/v6'
+DISCORD_API = 'https://discord.com/api/v6'
+CFC_BOT_TOKEN = Rails.application.credentials.cfc_bot_token
 CLIENT_ID = '650800239157968896'
 CLIENT_SECRET = Rails.application.credentials.client_secret
-REDIRECT_URL = 'https://iris.cfcservers.org/api/callbacks/discord'
-CFC_BOT_TOKEN = Rails.application.credentials.cfc_bot_token
+DISCORD_REDIRECT_URL = 'https://iris.cfcservers.org/api/callbacks/discord'
 
-SUCCESS_URL = 'https://cfcservers.org/link/success'
-FAILURE_URL = 'https://cfcservers.org/link/failure'
+URL_BASE = 'https://cfcservers.org/link'
+SUCCESS_URL = "#{URL_BASE}/success"
+FAILURE_URL = "#{URL_BASE}/failure"
 
 class CallbacksController < ApplicationController
   before_action :validate_discord_callback, only: [:receive_discord_callback]
-  before_action :validate_cfc_bot_callback, only: [:receive_cfc_bot_callback]
 
   def receive_discord_callback
-    code = params['code']
-
-    token = get_token_from_code(code)
-
-    user_info = get_user_info(token)
-    discord_id = user_info['id']
+    token = get_token_from_code(params['code'])
+    discord_info = get_discord_info(token)
+    discord_id = discord_info['id']
 
     error_codes = []
+    identity_rows = []
 
     user_connections = get_user_connections(token)
-    user_connections.each do |connection|
-      Rails.logger.info connection
-      next unless connection['type'] == 'steam'
 
-      is_verified = connection['verified']
-      error_codes.push('steam-not-verified') unless is_verified
-      break unless is_verified
-
-      steam_id = connection['id']
-
-      steam_id_used = Identity.find_by(platform: 'steam', identifier: steam_id)
-      discord_id_used = Identity.find_by(platform: 'discord', identifier: discord_id)
-
-      error_codes.push('used-steam-id') if steam_id_used
-      error_codes.push('used-discord-id') if discord_id_used
-
-      break if steam_id_used || discord_id_used
-
-      new_user = User.create
-      Identity.create(user_id: new_user.id, platform: 'steam', identifier: steam_id)
-      Identity.create(user_id: new_user.id, platform: 'discord', identifier: discord_id)
-
-      return redirect_to SUCCESS_URL
+    # Array of hashes to be used in a where chain
+    connection_pairs = user_connections.map do |c|
+      { identifier: c['id'], platform: c['type'] }
     end
 
-    error_codes.push('discord-missing-steam') if error_codes.empty?
+    # Generate a query to find any Identity with the
+    # specific pairs of identifiers and platforms
+    # TODO: Extract to model?
+    found_identities = connection_pairs.inject(Identity.none) do |memo, pair|
+      memo.or(Identity.where(pair))
+    end.pluck(:identifier, :user_id).to_h
 
-    error_codes = error_codes.join(',')
-    redirect_to "#{FAILURE_URL}?errors=#{error_codes}"
-  end
+    ## TODO: DRY these two conditions
+    if connection_pairs.select { |c| c[:platform] == 'steam' }.empty?
+      error_codes << 'discord-missing-steam'
+    end
 
-  def receive_cfc_bot_callback
-    steam_id = params['steam_id']
-    discord_id = params['discord_id']
+    if connection_pairs.select { |c| c[:platform] == 'discord' }.empty?
+      identity_rows << Identity.new(platform: 'discord', identifier: discord_id)
+    end
 
-    error_codes = []
+    user_connections.each do |connection|
+      platform = connection['type']
+      identifier = connection['id']
+      is_verified = connection['verified']
 
-    steam_id_used = Identity.find_by(platform: 'steam', identifier: steam_id)
-    discord_id_used = Identity.find_by(platform: 'discord', identifier: discord_id)
+      if is_verified == false
+        error_codes << 'steam-not-verified' if platform == 'steam'
+        next
+      end
 
-    error_codes.push('used-steam-id') if steam_id_used
-    error_codes.push('used-discord-id') if discord_id_used
+      user_id = found_identities[identifier]
 
-    render json: { status: 'failure', errors: error_codes } if error_codes.any?
+      if user_id.nil?
+        identity_rows << Identity.new(platform: platform, identifier: identifier)
+      end
+    end
 
-    new_user = User.create
-    Identity.create(user_id: new_user.id, platform: 'steam', identifier: steam_id)
-    Identity.create(user_id: new_user.id, platform: 'discord', identifier: discord_id)
+    # We have to handle the situation where they may have multiple Users created
+    users = User.includes(:identities)
+                .where(id: found_identities.values)
+                .order('created_at DESC')
 
-    render json: { status: 'success' }
+    if users.empty?
+      User.create(identities: identity_rows)
+    else
+      user = users.first
+
+      identity_rows.map { |row| row.user_id = user.id }
+      Identity.import identity_rows
+
+      # Combine all other Users into the first (oldest) User
+      users.first.consume_users!(users.slice(1..)) if users.size > 1
+    end
+
+    if error_codes.any?
+      error_codes = error_codes.join(',')
+      return redirect_to "#{FAILURE_URL}?errors=#{error_codes}"
+    end
+
+    redirect_to SUCCESS_URL
   end
 
   private
@@ -86,17 +96,17 @@ class CallbacksController < ApplicationController
       'client_secret': CLIENT_SECRET,
       'grant_type': 'authorization_code',
       'code': code,
-      'redirect_uri': REDIRECT_URL,
+      'redirect_uri': DISCORD_REDIRECT_URL,
       'scope': 'identify'
     }
 
     r = HTTP.headers('Content-Type': 'application/x-www-form-urlencoded')
-            .post("#{API_ENDPOINT}/oauth2/token", form: data)
+            .post("#{DISCORD_API}/oauth2/token", form: data)
 
     r.parse['access_token']
   end
 
-  def get_user_info(token)
+  def get_discord_info(token)
     r = HTTP.auth("Bearer #{token}")
             .get('https://discord.com/api/users/@me')
 
@@ -111,25 +121,11 @@ class CallbacksController < ApplicationController
   end
 
   def validate_discord_callback
-    Rails.logger.info "Validating discord callback"
-    Rails.logger.info request.referrer
-    Rails.logger.info request.referrer
-    Rails.logger.info request.referrer
-    Rails.logger.info request.referrer
-
     is_valid = [
       request&.referrer&.start_with?('https://discord.com'),
       params['code'].present? && params['code'].length == 30
     ]
 
-    render status: :unauthorized unless is_valid.all?
-  end
-
-  def validate_cfc_bot_callback
-    is_valid = [
-      request.form['token'] == CFC_BOT_TOKEN
-    ]
-
-    render status: :unauthorized unless is_valid.all?
+    render head: :unauthorized unless is_valid.all?
   end
 end
