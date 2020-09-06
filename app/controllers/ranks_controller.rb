@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 
 class RanksController < AuthenticatedController
   def update_ranks
@@ -9,6 +10,6 @@ class RanksController < AuthenticatedController
     # TODO: Validate this data and raise if problem
     RanksProcessingJob.perform_later(users, realm, platform)
 
-    render json: { status: 'success' }, status: 201
+    render head: :accepted
   end
 end
