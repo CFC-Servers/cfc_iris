@@ -5,8 +5,8 @@ class User < ApplicationRecord
   private
 
   def consume_users!(*users)
-    identities = users.map { |user| user.identities }
-    identities.update_all(user_id: self.id)
+    identities = users.map(&:identities)
+    identities.update_all(user_id: id)
     users.destroy_all
   end
 end
