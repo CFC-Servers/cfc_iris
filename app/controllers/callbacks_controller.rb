@@ -3,121 +3,131 @@
 require 'http'
 
 DISCORD_API = 'https://discord.com/api/v6'
-CFC_BOT_TOKEN = Rails.application.credentials.cfc_bot_token
-CLIENT_ID = '650800239157968896'
-CLIENT_SECRET = Rails.application.credentials.client_secret
 DISCORD_REDIRECT_URL = 'https://iris.cfcservers.org/api/callbacks/discord'
-
-URL_BASE = 'https://cfcservers.org/link'
-SUCCESS_URL = "#{URL_BASE}/success"
-FAILURE_URL = "#{URL_BASE}/failure"
+CREDENTIALS = Rails.application.credentials
 
 class CallbacksController < ApplicationController
   before_action :validate_discord_callback, only: [:receive_discord_callback]
+  before_action :new_callback_session
 
   def receive_discord_callback
-    token = get_token_from_code(params['code'])
-    discord_info = get_discord_info(token)
-    discord_id = discord_info['id']
+    results, new_identities = process_connections
 
-    error_codes = []
-    identity_rows = []
-
-    user_connections = get_user_connections(token)
-
-    # Array of hashes to be used in a where chain
-    connection_pairs = user_connections.map do |c|
-      { identifier: c['id'], platform: c['type'] }
+    if user_id_map[discord_id].nil?
+      new_identities << Identity.new(
+        platform: :discord,
+        identifier: discord_id
+      )
     end
 
-    # Generate a query to find any Identity with the
-    # specific pairs of identifiers and platforms
-    # TODO: Extract to model?
-    found_identities = connection_pairs.inject(Identity.none) do |memo, pair|
-      memo.or(Identity.where(pair))
-    end.pluck(:identifier, :user_id).to_h
-
-    ## TODO: DRY these two conditions
-    if connection_pairs.select { |c| c[:platform] == 'steam' }.empty?
-      error_codes << 'discord-missing-steam'
-    end
-
-    if connection_pairs.select { |c| c[:platform] == 'discord' }.empty?
-      identity_rows << Identity.new(platform: 'discord', identifier: discord_id)
-    end
-
-    user_connections.each do |connection|
-      platform = connection['type']
-      identifier = connection['id']
-      is_verified = connection['verified']
-
-      if is_verified == false
-        error_codes << 'steam-not-verified' if platform == 'steam'
-        next
-      end
-
-      user_id = found_identities[identifier]
-
-      if user_id.nil?
-        identity_rows << Identity.new(platform: platform, identifier: identifier)
-      end
-    end
-
-    # We have to handle the situation where they may have multiple Users created
     users = User.includes(:identities)
-                .where(id: found_identities.values)
+                .where(id: user_ids.values)
                 .order('created_at DESC')
 
-    if users.empty?
-      User.create(identities: identity_rows)
-    else
-      user = users.first
+    users.yield_self do |oldest_user, *newer_users|
+      break User.create(identities: new_identities) if oldest_user.nil?
 
-      identity_rows.map { |row| row.user_id = user.id }
-      Identity.import identity_rows
+      new_identities.map { |row| row.user_id = oldest_user.id }
+      Identity.import new_identities
 
-      # Combine all other Users into the first (oldest) User
-      users.first.consume_users!(users.slice(1..)) if users.size > 1
+      oldest_user.consume_users! newer_users if newer_users.any?
     end
 
-    if error_codes.any?
-      error_codes = error_codes.join(',')
-      return redirect_to "#{FAILURE_URL}?errors=#{error_codes}"
-    end
+    @callback_session.update(results: results.to_json)
 
-    redirect_to SUCCESS_URL
+    redirect_to @callback_url
   end
 
   private
 
-  def get_token_from_code(code)
+  def process_connections
+    results = []
+    identity_rows = []
+
+    user_connections.each do |connection|
+      platform = connection[:type]
+      identifier = connection[:id]
+      is_verified = connection[:verified]
+
+      if is_verified == false
+        results << { platform: platform, error: 'not-verified' }
+        next
+      end
+
+      message = ''
+
+      if user_id_map[identifier].present?
+        message = 'already-linked'
+      else
+        identity_rows << Identity.new(
+          platform: platform,
+          identifier: identifier
+        )
+
+        message = 'linked-successfully'
+      end
+
+      results << { platform: platform, message: message }
+    end
+
+    [results, identity_rows]
+  end
+
+  def user_id_map
+    @user_id_map ||= make_user_id_map
+  end
+
+  def make_user_id_map
+    # Array of hashes to be used in a where chain
+    connection_pairs = user_connections.map do |c|
+      { identifier: c[:id], platform: c[:type] }
+    end
+
+    # Generate a query to find any Identity with the
+    # specific pairs of identifiers and platforms
+    identities = connection_pairs.inject(Identity.none) do |memo, pair|
+      memo.or(Identity.where(pair))
+    end
+
+    # { identifier: [user_id, user_id] }
+    identities.each_with_object({}) do |hash, identity|
+      identifier = identity.identifier
+
+      hash[identifier] ||= []
+      hash[identifier] << identity.user_id
+    end
+  end
+
+  def discord_token_from_params
     data = {
-      'client_id': CLIENT_ID,
-      'client_secret': CLIENT_SECRET,
-      'grant_type': 'authorization_code',
-      'code': code,
-      'redirect_uri': DISCORD_REDIRECT_URL,
-      'scope': 'identify'
+      client_id: CREDENTIALS.discord_client_id,
+      client_secret: CREDENTIALS.discord_client_secret,
+      grant_type: :authorization_code,
+      code: params['code'],
+      redirect_uri: DISCORD_REDIRECT_URL,
+      scope: :identify
     }
 
-    r = HTTP.headers('Content-Type': 'application/x-www-form-urlencoded')
-            .post("#{DISCORD_API}/oauth2/token", form: data)
-
-    r.parse['access_token']
+    HTTP.headers('Content-Type': 'application/x-www-form-urlencoded')
+        .post("#{DISCORD_API}/oauth2/token", form: data)
+        .parse['access_token']
   end
 
-  def get_discord_info(token)
-    r = HTTP.auth("Bearer #{token}")
-            .get('https://discord.com/api/users/@me')
-
-    r.parse
+  def discord_token
+    @discord_token ||= discord_token_from_params
   end
 
-  def get_user_connections(token)
-    r = HTTP.auth("Bearer #{token}")
-            .get('https://discord.com/api/users/@me/connections')
+  def discord_id
+    @discord_id ||= HTTP.auth("Bearer #{discord_token}")
+                        .get('https://discord.com/api/users/@me')
+                        .parse['id']
+  end
 
-    r.parse
+  def user_connections
+    @user_connections ||= HTTP.auth("Bearer #{discord_token}")
+                              .get('https://discord.com/api/users/@me/connections')
+                              .parse
+                              .symbolize_keys
   end
 
   def validate_discord_callback
@@ -127,5 +137,16 @@ class CallbacksController < ApplicationController
     ]
 
     render head: :unauthorized unless is_valid.all?
+  end
+
+  def new_callback_session
+    @callback_session = CallbackSession.create(
+      referrer: request.referrer,
+      params: params.to_json,
+      ip: request.remote_ip
+    )
+
+    url_base = 'https://cfcservers.org/link/success'
+    @callback_url = "#{url_base}/success?session=#{@callback_session.uuid}"
   end
 end
