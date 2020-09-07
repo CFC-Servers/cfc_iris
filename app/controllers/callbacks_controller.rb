@@ -11,7 +11,9 @@ class CallbacksController < ApplicationController
   before_action :new_callback_session
 
   def receive_discord_callback
-    results, new_identities = process_connections
+    processed = process_connections
+    results = processed[:results]
+    new_identities = processed[:identity_rows]
 
     if user_id_map[discord_id].nil?
       new_identities << Identity.new(
@@ -22,7 +24,7 @@ class CallbacksController < ApplicationController
 
     users = User.includes(:identities)
                 .where(id: user_ids.values)
-                .order('created_at DESC')
+                .order(created_at: :desc)
 
     users.yield_self do |oldest_user, *newer_users|
       break User.create(identities: new_identities) if oldest_user.nil?
@@ -41,16 +43,16 @@ class CallbacksController < ApplicationController
   private
 
   def process_connections
-    results = []
-    identity_rows = []
-
-    user_connections.each do |connection|
+    user_connections.each_with_object(
+      results: [],
+      identity_rows: []
+    ) do |connection, processed|
       platform = connection[:type]
       identifier = connection[:id]
       is_verified = connection[:verified]
 
       if is_verified == false
-        results << { platform: platform, error: 'not-verified' }
+        processed.results << { platform: platform, error: 'not-verified' }
         next
       end
 
@@ -67,10 +69,8 @@ class CallbacksController < ApplicationController
         message = 'linked-successfully'
       end
 
-      results << { platform: platform, message: message }
+      processed.results << { platform: platform, message: message }
     end
-
-    [results, identity_rows]
   end
 
   def user_id_map
