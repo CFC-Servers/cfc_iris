@@ -78,15 +78,10 @@ class CallbacksController < ApplicationController
   end
 
   def make_user_id_map
-    # Array of hashes to be used in a where chain
-    connection_pairs = user_connections.map do |c|
-      { identifier: c[:id], platform: c[:type] }
-    end
-
     # Generate a query to find any Identity with the
     # specific pairs of identifiers and platforms
-    identities = connection_pairs.inject(Identity.none) do |memo, pair|
-      memo.or(Identity.where(pair))
+    identities = user_connections.inject(Identity.none) do |memo, pair|
+      memo.or(Identity.where(pair.slice(:identifier, :platform)))
     end
 
     # { identifier: [user_id, user_id] }
@@ -127,7 +122,13 @@ class CallbacksController < ApplicationController
     @user_connections ||= HTTP.auth("Bearer #{discord_token}")
                               .get('https://discord.com/api/users/@me/connections')
                               .parse
-                              .symbolize_keys
+                              .map do |c|
+                                {
+                                  identifier: c['id'],
+                                  platform: c['type'],
+                                  verified: c['verified']
+                                }
+                              end
   end
 
   def validate_discord_callback
