@@ -3,7 +3,7 @@
 class RanksController < AuthenticatedController
   def update_ranks
     params.require %i[users realm platform]
-    users = params[:users]
+    users = JSON.parse(LZMA.decompress(params[:users]))
     realm = params[:realm]
     platform = params[:platform]
 
