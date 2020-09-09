@@ -3,14 +3,13 @@
 class UsersController < AuthenticatedController
   def find_user
     platforms = params.permit(:steam, :discord)
-
     identity = Identity.find_by(platform: platforms, identifier: identifier)
 
-    if identity
-      return render json: { user: identity.user.as_json(include: %i[identities ranks]) }
-    end
+    render json: { error: 'User not found' }, status: 404 unless identity
 
-    render json: { error: 'User not found' }, status: 404
+    identity_user = identity.user.as_json(include: %i[identities ranks])
+
+    render json: { user: identity_user }
   end
 
   def get
@@ -18,10 +17,5 @@ class UsersController < AuthenticatedController
     return render json: { error: 'User not found' }, status: 404 unless user
 
     render json: { user: user.as_json(include: %i[identities ranks]) }
-  end
-
-  def steam_ids
-    steam_ids = Identity.where(platform: 'steam').all.pluck(:identifier)
-    render json: { steamIDs: steam_ids }
   end
 end
