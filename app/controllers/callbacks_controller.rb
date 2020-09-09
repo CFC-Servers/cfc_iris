@@ -47,12 +47,14 @@ class CallbacksController < ApplicationController
       results: [],
       identity_rows: []
     ) do |connection, processed|
-      platform = connection[:type]
-      identifier = connection[:id]
-      is_verified = connection[:verified]
+      platform = connection[:platform]
+      identifier = connection[:identifier]
 
-      if is_verified == false
-        processed.results << { platform: platform, error: 'not-verified' }
+      if connection[:verified] == false
+        processed[:results] << {
+          platform: platform,
+          error: 'not-verified'
+        }
         next
       end
 
@@ -61,15 +63,18 @@ class CallbacksController < ApplicationController
       if user_id_map[identifier].present?
         message = 'already-linked'
       else
-        identity_rows << Identity.new(
+        processed[:identity_rows] << Identity.new(
           platform: platform,
           identifier: identifier
         )
 
-        message = 'linked-successfully'
+        message = 'successfully-linked'
       end
 
-      processed.results << { platform: platform, message: message }
+      processed[:results] << {
+        platform: platform,
+        message: message
+      }
     end
   end
 
