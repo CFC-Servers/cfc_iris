@@ -26,8 +26,15 @@ class CallbacksController < ApplicationController
                 .where(id: user_id_map.values)
                 .order(created_at: :desc)
 
+    # TODO: DRY this up
     users.yield_self do |oldest_user, *newer_users|
-      break User.create(identities: new_identities) if oldest_user.nil?
+      if oldest_user.nil?
+        new_user = User.create
+        new_identities.map { |row| row.user_id = new_user.id }
+
+        Identity.import new_identities, on_duplicate_key_ignore: true
+        break
+      end
 
       new_identities.map { |row| row.user_id = oldest_user.id }
       Identity.import new_identities, on_duplicate_key_ignore: true
