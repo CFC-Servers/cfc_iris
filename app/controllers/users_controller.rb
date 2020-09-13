@@ -2,20 +2,23 @@
 
 class UsersController < AuthenticatedController
   def find_user
-    platforms = params.permit(:steam, :discord)
-    identity = Identity.find_by(platform: platforms, identifier: identifier)
+    user_ids = find_params['identities'].inject(Identity.includes(:user).none) do |memo, pair|
+      memo.or(Identity.where(pair.slice(:identifier, :platform)))
+    end.pluck(:user_id)
 
-    render json: { error: 'User not found' }, status: 404 unless identity
+    users_data = User.where(id: user_ids).as_json(include: %i[identities ranks])
 
-    identity_user = identity.user.as_json(include: %i[identities ranks])
-
-    render json: { user: identity_user }
+    render json: { users: users_data }
   end
 
   def get
     user = User.find_by(id: params[:id])
     return render json: { error: 'User not found' }, status: 404 unless user
 
-    render json: { user: user.as_json(include: %i[identities ranks]) }
+    render json: { user: user.to_json(include: %i[identities ranks]) }
+  end
+
+  def find_params
+    params.permit(identities: %i[identifier platform])
   end
 end

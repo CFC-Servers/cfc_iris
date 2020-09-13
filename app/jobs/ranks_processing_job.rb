@@ -18,6 +18,8 @@ class RanksProcessingJob < ApplicationJob
       if user_id.nil?
         user = User.new
         identity = Identity.new(identifier: identifier, platform: platform)
+        identity.user = user
+        rank.user = user
 
         user.identities << identity
         user.ranks << rank

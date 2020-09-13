@@ -23,7 +23,7 @@ class CallbacksController < ApplicationController
     end
 
     users = User.includes(:identities)
-                .where(id: user_ids.values)
+                .where(id: user_id_map.values)
                 .order(created_at: :desc)
 
     users.yield_self do |oldest_user, *newer_users|
@@ -89,8 +89,13 @@ class CallbacksController < ApplicationController
       memo.or(Identity.where(pair.slice(:identifier, :platform)))
     end
 
+    Rails.logger.info('User connections:')
+    Rails.logger.info(user_connections)
+    Rails.logger.info('Identities:')
+    Rails.logger.info(identities.all.to_a)
+
     # { identifier: [user_id, user_id] }
-    identities.each_with_object({}) do |hash, identity|
+    identities.each_with_object({}) do |identity, hash|
       identifier = identity.identifier
 
       hash[identifier] ||= []
@@ -152,7 +157,7 @@ class CallbacksController < ApplicationController
       ip: request.remote_ip
     )
 
-    url_base = 'https://cfcservers.org/link/success'
-    @callback_url = "#{url_base}/success?session=#{@callback_session.uuid}"
+    url_base = 'https://cfcservers.org/link/'
+    @callback_url = "#{url_base}/complete?session=#{@callback_session.uuid}"
   end
 end
