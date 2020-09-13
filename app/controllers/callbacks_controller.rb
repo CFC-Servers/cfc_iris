@@ -89,11 +89,6 @@ class CallbacksController < ApplicationController
       memo.or(Identity.where(pair.slice(:identifier, :platform)))
     end
 
-    Rails.logger.info('User connections:')
-    Rails.logger.info(user_connections)
-    Rails.logger.info('Identities:')
-    Rails.logger.info(identities.all.to_a)
-
     # { identifier: [user_id, user_id] }
     identities.each_with_object({}) do |identity, hash|
       identifier = identity.identifier
