@@ -30,7 +30,7 @@ class CallbacksController < ApplicationController
       break User.create(identities: new_identities) if oldest_user.nil?
 
       new_identities.map { |row| row.user_id = oldest_user.id }
-      Identity.import new_identities
+      Identity.import new_identities, on_duplicate_key_ignore: true
 
       oldest_user.consume_users! newer_users if newer_users.any?
     end
