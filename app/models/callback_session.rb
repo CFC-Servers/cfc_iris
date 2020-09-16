@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class CallbackSession < ApplicationRecord
-  default_scope { where(active: true) }
+  #default_scope { where(active: true) }
 
   before_create do
     self.uuid = SecureRandom.uuid
