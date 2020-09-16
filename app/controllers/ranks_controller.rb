@@ -2,15 +2,18 @@
 
 class RanksController < AuthenticatedController
   def update_ranks
-    params.require %i[users realm platform]
-    #users = JSON.parse(LZMA.decompress(params[:users]))
-    users = JSON.parse(params[:users])
-    realm = params[:realm]
-    platform = params[:platform]
+    Rails.logger.info(update_params.inspect)
+    users = update_params[:users]
+    realm = update_params[:realm]
+    platform = update_params[:platform]
 
     # TODO: Validate this data and raise if problem
     RanksProcessingJob.perform_later(users, realm, platform)
 
     render head: :accepted
+  end
+
+  def update_params
+    params.permit(:realm, :platform, users: {})
   end
 end

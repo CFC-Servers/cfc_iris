@@ -5,6 +5,7 @@ class User < ApplicationRecord
   private
 
   def consume_users!(*users)
+    Rails.logger.log("[User ##{id}] consuming #{users.count} users [#{users.pluck(:id)}]")
     identities = users.map(&:identities)
     identities.update_all(user_id: id)
     users.destroy_all

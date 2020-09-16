@@ -6,6 +6,10 @@ DISCORD_API = 'https://discord.com/api/v6'
 DISCORD_REDIRECT_URL = 'https://iris.cfcservers.org/api/callbacks/discord'
 CREDENTIALS = Rails.application.credentials
 
+def log(l)
+  Rails.logger.info(l)
+end
+
 class CallbacksController < ApplicationController
   before_action :validate_discord_callback, only: [:receive_discord_callback]
   before_action :new_callback_session
@@ -22,13 +26,24 @@ class CallbacksController < ApplicationController
       )
     end
 
+    Rails.logger.info(user_id_map)
+
     users = User.includes(:identities)
-                .where(id: user_id_map.values)
+                .where(id: user_id_map.values.flatten)
                 .order(created_at: :desc)
+    log "Found #{users.count} "
+
+    users.each do |l|
+      Rails.logger.info("User: #{l.to_json}")
+    end
 
     # TODO: DRY this up
     users.yield_self do |oldest_user, *newer_users|
+      log "Oldest user: #{oldest_user.inspect}"
+      log "Newer users count: #{newer_users.count}"
+
       if oldest_user.nil?
+        log "Oldest user is nil, creating a new user and assigning #{new_identities.count} identities"
         new_user = User.create
         new_identities.map { |row| row.user_id = new_user.id }
 
@@ -36,6 +51,7 @@ class CallbacksController < ApplicationController
         break
       end
 
+      log "Oldest user is valid, assigning/importing #{new_identities.count} identities and consuming #{newer_users.count} other users.."
       new_identities.map { |row| row.user_id = oldest_user.id }
       Identity.import new_identities, on_duplicate_key_ignore: true
 
@@ -50,6 +66,8 @@ class CallbacksController < ApplicationController
   private
 
   def process_connections
+    log "Processing connections"
+
     user_connections.each_with_object(
       results: [],
       identity_rows: []
@@ -57,7 +75,10 @@ class CallbacksController < ApplicationController
       platform = connection[:platform]
       identifier = connection[:identifier]
 
+      log "Processing: #{identifier}@#{platform}"
+
       if connection[:verified] == false
+        log "#{platform} is not verified!"
         processed[:results] << {
           platform: platform,
           error: 'not-verified'
@@ -68,8 +89,10 @@ class CallbacksController < ApplicationController
       message = ''
 
       if user_id_map[identifier].present?
+        log "#{platform} is already linked!"
         message = 'already-linked'
       else
+        log "Queuing new Identity for #{platform}!"
         processed[:identity_rows] << Identity.new(
           platform: platform,
           identifier: identifier
@@ -99,6 +122,7 @@ class CallbacksController < ApplicationController
     # { identifier: [user_id, user_id] }
     identities.each_with_object({}) do |identity, hash|
       identifier = identity.identifier
+      log "Adding map: #{identifier}:#{identity.user_id}"
 
       hash[identifier] ||= []
       hash[identifier] << identity.user_id
@@ -131,10 +155,12 @@ class CallbacksController < ApplicationController
   end
 
   def user_connections
+    log "Getting user connections"
     @user_connections ||= HTTP.auth("Bearer #{discord_token}")
                               .get('https://discord.com/api/users/@me/connections')
                               .parse
                               .map do |c|
+                                log "Tracking connection: #{c.inspect.to_s}"
                                 {
                                   identifier: c['id'],
                                   platform: c['type'],
@@ -144,22 +170,31 @@ class CallbacksController < ApplicationController
   end
 
   def validate_discord_callback
+    #log 'Validating discord callback..'
     is_valid = [
       request&.referrer&.start_with?('https://discord.com'),
       params['code'].present? && params['code'].length == 30
     ]
 
-    render head: :unauthorized unless is_valid.all?
+    head :unauthorized unless is_valid.all?
+
+    Rails.logger.info "Discord callback validated"
   end
 
   def new_callback_session
+    #log "Creating new callback session"
+
     @callback_session = CallbackSession.create(
       referrer: request.referrer,
       params: params.to_json,
       ip: request.remote_ip
     )
 
-    url_base = 'https://cfcservers.org/link/'
+    url_base = 'https://cfcservers.org/link'
     @callback_url = "#{url_base}/complete?session=#{@callback_session.uuid}"
+  end
+
+  def breakout
+    render 'hello' and return
   end
 end
