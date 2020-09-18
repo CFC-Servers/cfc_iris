@@ -31,6 +31,7 @@ class CallbacksController < ApplicationController
     users = User.includes(:identities)
                 .where(id: user_id_map.values.flatten)
                 .order(created_at: :desc)
+
     log "Found #{users.count} "
 
     users.each do |l|
