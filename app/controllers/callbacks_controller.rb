@@ -66,7 +66,7 @@ class CallbacksController < ApplicationController
   private
 
   def process_connections
-    log "Processing connections"
+    log 'Processing connections'
 
     user_connections.each_with_object(
       results: [],
@@ -81,7 +81,7 @@ class CallbacksController < ApplicationController
         log "#{platform} is not verified!"
         processed[:results] << {
           platform: platform,
-          error: 'not-verified'
+          message: 'not-verified'
         }
         next
       end
