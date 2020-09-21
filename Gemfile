@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 source 'https://rubygems.org'
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
@@ -7,7 +9,7 @@ ruby '2.6.1'
 gem 'rails', '~> 5.2.3'
 # Use sqlite3 as the database for Active Record
 #gem 'sqlite3'
-gem 'mysql2'
+#gem 'mysql2'
 gem 'pg'
 # Use Puma as the app server
 gem 'puma', '~> 3.12'
@@ -18,7 +20,11 @@ gem 'puma', '~> 3.12'
 # Use ActiveModel has_secure_password
 gem 'bcrypt', '~> 3.1.7'
 
+# LZMA support
 gem 'ruby-lzma'
+
+# Sentry.io
+gem 'sentry-raven'
 
 # Use ActiveStorage variant
 # gem 'mini_magick', '~> 4.8'
