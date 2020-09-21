@@ -31,6 +31,11 @@ class RanksProcessingJob < ApplicationJob
     end
 
     User.import user_rows, recursive: true, batch_size: 5_000
-    Rank.import rank_rows, batch_size: 5_000
+    Rank.import rank_rows,
+                batch_size: 5_000,
+                on_duplicate_key_update: {
+                  conflict_target: %i[user_id realm],
+                  columns: [:name]
+                }
   end
 end
