@@ -1,0 +1,65 @@
+name: Build and Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.GH_TOKEN }}
+
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
+
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/cfc-servers/cfc_iris:latest
+            ghcr.io/cfc-servers/cfc_iris:${{ steps.get_version.outputs.VERSION }}
+          secrets: |
+            GIT_AUTH_TOKEN=${{ secrets.GH_TOKEN }}
+
+      - name: SSH and deploy container
+        uses: appleboy/ssh-action@master
+        env:
+          DEPLOYMENT_DIR: ${{ secrets.DEPLOYMENT_DIR }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.GH_TOKEN }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: DEPLOYMENT_DIR,DOCKER_USERNAME,DOCKER_PASSWORD
+          script_stop: true
+          script: |
+            cd $DEPLOYMENT_DIR
+            git fetch --all
+            git pull
+            docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD" ghcr.io
+            docker-compose -f docker-compose.prod.yml pull
+            docker-compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker image prune -af

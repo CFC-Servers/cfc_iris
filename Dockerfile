@@ -6,7 +6,7 @@ RUN mkdir -p tmp/pids
 WORKDIR /iris-backend
 COPY Gemfile /iris-backend/Gemfile
 COPY Gemfile.lock /iris-backend/Gemfile.lock
-RUN bundle install
+RUN NOKOGIRI_USE_SYSTEM_LIBRARIES=1 bundle install -j2
 COPY . /iris-backend
 
 # Add a script to be executed every time the container starts.
@@ -16,4 +16,4 @@ ENTRYPOINT ["entrypoint.sh"]
 EXPOSE 3115
 
 # Start the main process.
-CMD ["bundle", "exec", "rails", "s", "-t", "5:5"]
+CMD ["bundle", "exec", "puma", "-t", "5:5", "-p", "3115"]
