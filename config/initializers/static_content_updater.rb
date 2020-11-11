@@ -1,5 +1,5 @@
 repo = "CFC-Servers/cfc_iris_frontend"
-repo_link = "git@github.com:#{repo}.git"
+repo_link = "https://github.com/#{repo}.git"
 content_url = "https://github.com/#{repo}/releases/latest/download/built-site.tar.bz2"
 
 current_frontend_version = `cat public/frontend/VERSION`
