@@ -1,4 +1,4 @@
-repo_link = git@github.com:CFC-Servers/cfc_iris_frontend.git
+repo_link = "git@github.com:CFC-Servers/cfc_iris_frontend.git"
 
 current_frontend_version = `cat public/frontend/VERSION`
 latest_frontend_version = `git ls-remote --refs --sort='version:refname' --tags #{repo_link} | cut -d/ -f3-|tail -n1`
