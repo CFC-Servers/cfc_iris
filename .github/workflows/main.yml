@@ -66,3 +66,77 @@ jobs:
             docker-compose -f docker-compose.prod.yml pull
             docker-compose -f docker-compose.prod.yml up -d --remove-orphans
             docker image prune -af
+
+  alerts:
+    name: Send Discord alerts
+    needs: build
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: technote-space/workflow-conclusion-action@v2
+
+      - name: Alert on success
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DISCORD_EMBEDS: '[
+            {
+              "title": "**Job succeeded!**",
+              "description": "**[${{ github.workflow }} #${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**",
+              "color": 4714567,
+              "fields": [
+                {
+                  "name": "Triggered by",
+                  "value": "[${{ github.actor }}](${{ github.server_url }}/${{ github.actor }})",
+                  "inline": true
+                },
+                {
+                  "name": "Tag",
+                  "value": "${{ github.ref }}",
+                  "inline": true
+                }
+              ],
+              "author": {
+                "name": "GitHub Actions",
+                "icon_url": "https://i.imgur.com/z0f8jOI.jpg"
+              },
+              "footer": {
+                "text": "${{ github.workflow }}",
+                "icon_url": "https://i.imgur.com/CzJAQiV.png"
+              }
+            }
+          ]'
+        if: env.WORKFLOW_CONCLUSION == 'success'
+
+      - name: Alert on failure
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DISCORD_EMBEDS: '[
+            {
+              "title": "**Job failed!**",
+              "description": "**[${{ github.workflow }} #${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**",
+              "color": 15746887,
+              "fields": [
+                {
+                  "name": "Triggered by",
+                  "value": "[${{ github.actor }}](${{ github.server_url }}/${{ github.actor }})",
+                  "inline": true
+                },
+                {
+                  "name": "Tag",
+                  "value": "${{ github.ref }}",
+                  "inline": true
+                }
+              ],
+              "author": {
+                "name": "GitHub Actions",
+                "icon_url": "https://i.imgur.com/z0f8jOI.jpg"
+              },
+              "footer": {
+                "text": "${{ github.workflow }}",
+                "icon_url": "https://i.imgur.com/O0I9Mmr.png"
+              }
+            }
+          ]'
+        if: env.WORKFLOW_CONCLUSION == 'failure' || env.WORKFLOW_CONCLUSION == 'timed_out'
