@@ -14,8 +14,6 @@ services:
     volumes:
       - .:/app:cached
       - content:/app/public/frontend
-    ports:
-      - "3115:3115"
     environment:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=dummy
