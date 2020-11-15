@@ -68,6 +68,8 @@ jobs:
             docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD" ghcr.io
             docker-compose -f docker-compose.prod.yml pull
             docker-compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Clean up orphaned images
             docker image prune -af
 
   alerts:
