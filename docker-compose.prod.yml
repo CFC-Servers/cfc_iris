@@ -16,7 +16,7 @@ services:
       - content:/app/public/frontend
     environment:
       - RAILS_ENV=production
-      - SECRET_KEY_BASE=dummy
+      - RAILS_MASTER_KEY=$RAILS_MASTER_KEY
     depends_on:
       - db
 
