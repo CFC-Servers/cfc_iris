@@ -16,6 +16,6 @@ if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
   rm -rf "$CONTENT_DIR/*"
 
   curl --silent --show-error --location "$CONTENT_URL" --output "$SITE_PACKAGE"
-  tar --directory "$CONTENT_DIR/" --extract --bunzip2 --file "$SITE_PACKAGE"
+  tar --directory "$CONTENT_DIR/" --extract --bzip2 --file "$SITE_PACKAGE"
   rm "$SITE_PACKAGE"
 fi
