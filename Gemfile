@@ -24,7 +24,8 @@ gem 'bcrypt', '~> 3.1.7'
 gem 'ruby-lzma'
 
 # Sentry.io
-gem 'sentry-raven'
+gem "sentry-ruby"
+gem "sentry-rails"
 
 # Use ActiveStorage variant
 # gem 'mini_magick', '~> 4.8'

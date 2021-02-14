@@ -31,9 +31,5 @@ module CfcIris
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
-
-    Raven.configure do |config|
-      config.dsn = Rails.application.credentials.dig(:sentry, Rails.env, :SENTRY_DSN)
-    end
   end
 end
