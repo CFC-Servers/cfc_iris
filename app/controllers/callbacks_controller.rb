@@ -151,7 +151,7 @@ class CallbacksController < ApplicationController
   def discord_id
     return @discord_id if @discord_id
 
-    response = HTTP.auth('Bearer #{discord_token}')
+    response = HTTP.auth("Bearer #{discord_token}")
                    .get('https://discord.com/api/users/@me')
 
     parsed = response.parse
@@ -170,7 +170,7 @@ class CallbacksController < ApplicationController
   def user_connections
     return @user_connections if @user_connections
 
-    response = HTTP.auth('Bearer #{discord_token}')
+    response = HTTP.auth("Bearer #{discord_token}")
                    .get('https://discord.com/api/users/@me/connections')
 
     parsed = response.parse
