@@ -19,13 +19,6 @@ class CallbacksController < ApplicationController
     results = processed[:results]
     new_identities = processed[:identity_rows]
 
-    if user_id_map[discord_id].nil?
-      new_identities << Identity.new(
-        platform: :discord,
-        identifier: discord_id
-      )
-    end
-
     Rails.logger.info(user_id_map)
 
     users = User.includes(:identities)
@@ -38,23 +31,20 @@ class CallbacksController < ApplicationController
       Rails.logger.info("User: #{l.to_json}")
     end
 
-    # TODO: DRY this up
     users.yield_self do |oldest_user, *newer_users|
       log "Oldest user: #{oldest_user.inspect}"
       log "Newer users count: #{newer_users.count}"
 
+      user = oldest_user || User.create
+      new_identities.map { |row| row.user_id = user.id }
+      Identity.import new_identities, on_duplicate_key_ignore: true
+
       if oldest_user.nil?
         log "Oldest user is nil, creating a new user and assigning #{new_identities.count} identities"
-        new_user = User.create
-        new_identities.map { |row| row.user_id = new_user.id }
-
-        Identity.import new_identities, on_duplicate_key_ignore: true
         break
       end
 
       log "Oldest user is valid, assigning/importing #{new_identities.count} identities and consuming #{newer_users.count} other users.."
-      new_identities.map { |row| row.user_id = oldest_user.id }
-      Identity.import new_identities, on_duplicate_key_ignore: true
 
       oldest_user.consume_users! newer_users if newer_users.any?
     end
@@ -107,11 +97,6 @@ class CallbacksController < ApplicationController
         message: message
       }
     end
-
-    processed[:results] << {
-      platform: "discord",
-      message: "successfully-linked"
-    }
   end
 
   def user_id_map
@@ -145,9 +130,18 @@ class CallbacksController < ApplicationController
       scope: :identify
     }
 
-    HTTP.headers('Content-Type': 'application/x-www-form-urlencoded')
-        .post("#{DISCORD_API}/oauth2/token", form: data)
-        .parse['access_token']
+    response = HTTP.headers('Content-Type': 'application/x-www-form-urlencoded')
+                   .post("#{DISCORD_API}/oauth2/token", form: data)
+    parsed = response.parse
+
+    if !response.status.success?
+      Rails.logger.error('Discord token retrieval failed!')
+      Rails.logger.error(parsed.inspect)
+
+      raise 'Error in Discord token retrieval'
+    end
+
+    parsed['access_token']
   end
 
   def discord_token
@@ -155,28 +149,50 @@ class CallbacksController < ApplicationController
   end
 
   def discord_id
-    @discord_id ||= HTTP.auth("Bearer #{discord_token}")
-                        .get('https://discord.com/api/users/@me')
-                        .parse['id']
+    return @discord_id if @discord_id
+
+    response = HTTP.auth("Bearer #{discord_token}")
+                   .get('https://discord.com/api/users/@me')
+
+    parsed = response.parse
+
+    if !response.status.success?
+      Rails.logger.error('Discord ID lookup failed!')
+      Rails.logger.error(parsed.inspect)
+
+      raise 'Error in Discord ID lookup'
+    end
+
+    @discord_id = parsed['id']
+    @discord_id
   end
 
   def user_connections
     return @user_connections if @user_connections
 
-    @user_connections = HTTP.auth("Bearer #{discord_token}")
-                            .get('https://discord.com/api/users/@me/connections')
-                            .parse
-                            .map do |c|
-                              {
-                                identifier: c['id'],
-                                platform: c['type'],
-                                verified: c['verified']
-                              }
-                            end
+    response = HTTP.auth("Bearer #{discord_token}")
+                   .get('https://discord.com/api/users/@me/connections')
+
+    parsed = response.parse
+
+    if !response.status.success?
+      Rails.logger.error('User connection lookup failed!')
+      Rails.logger.error(parsed.inspect)
+
+      raise 'Error in user connection lookup'
+    end
+
+    @user_connections = parsed.map do |c|
+      {
+        identifier: c['id'],
+        platform: c['type'],
+        verified: c['verified']
+      }
+    end
 
     @user_connections << {
       identifier: discord_id,
-      platform: "discord",
+      platform: :discord,
       verified: true
     }
 
@@ -192,7 +208,7 @@ class CallbacksController < ApplicationController
 
     head :unauthorized unless is_valid.all?
 
-    Rails.logger.info "Discord callback validated"
+    Rails.logger.info 'Discord callback validated'
   end
 
   def new_callback_session
