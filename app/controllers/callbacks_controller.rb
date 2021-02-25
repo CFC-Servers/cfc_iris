@@ -107,6 +107,11 @@ class CallbacksController < ApplicationController
         message: message
       }
     end
+
+    processed[:results] << {
+      platform: "discord",
+      message: "successfully-linked"
+    }
   end
 
   def user_id_map
@@ -168,6 +173,14 @@ class CallbacksController < ApplicationController
                                   verified: c['verified']
                                 }
                               end
+
+    @user_connections << {
+      identifier: discord_id,
+      platform: "discord",
+      verified: true
+    }
+
+    @user_connections
   end
 
   def validate_discord_callback
