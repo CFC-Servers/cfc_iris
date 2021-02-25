@@ -161,18 +161,18 @@ class CallbacksController < ApplicationController
   end
 
   def user_connections
-    log "Getting user connections"
-    @user_connections ||= HTTP.auth("Bearer #{discord_token}")
-                              .get('https://discord.com/api/users/@me/connections')
-                              .parse
-                              .map do |c|
-                                log "Tracking connection: #{c.inspect.to_s}"
-                                {
-                                  identifier: c['id'],
-                                  platform: c['type'],
-                                  verified: c['verified']
-                                }
-                              end
+    return @user_connections if @user_connections
+
+    @user_connections = HTTP.auth("Bearer #{discord_token}")
+                            .get('https://discord.com/api/users/@me/connections')
+                            .parse
+                            .map do |c|
+                              {
+                                identifier: c['id'],
+                                platform: c['type'],
+                                verified: c['verified']
+                              }
+                            end
 
     @user_connections << {
       identifier: discord_id,
