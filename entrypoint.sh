@@ -3,6 +3,8 @@ set -e
 
 # Remove a potentially pre-existing server.pid for Rails.
 rm -rf tmp/pids/server.pid
+export NOKOGIRI_USE_SYSTEM_LIBRARIES=1
+bundle install -j2
 bundle exec rake db:prepare
 
 # Update static content
