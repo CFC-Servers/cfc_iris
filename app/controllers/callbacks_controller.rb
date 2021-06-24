@@ -149,7 +149,7 @@ class CallbacksController < ApplicationController
     resp = req.post("#{DISCORD_API}/oauth2/token", form: data)
     resp = resp.parse
 
-    puts resp.inspect
+    log resp.inspect
 
     token = resp['access_token']
 
@@ -184,10 +184,10 @@ class CallbacksController < ApplicationController
               .get('https://discord.com/api/users/@me/connections')
 
     resp = req.parse
-    puts resp.inspect
+    log resp.inspect
 
     @user_connections = resp.map do |c|
-      puts c
+      log c
       {
         identifier: c['id'],
         platform: c['type'],
