@@ -147,7 +147,7 @@ class CallbacksController < ApplicationController
 
     req = HTTP.headers('Content-Type': 'application/x-www-form-urlencoded')
     resp = req.post("#{DISCORD_API}/oauth2/token", form: data)
-    resp = resp.read_body
+    resp = resp.parse(:json)
 
     log resp.inspect
 
@@ -163,7 +163,7 @@ class CallbacksController < ApplicationController
   def discord_id
     @discord_id ||= HTTP.auth("Bearer #{discord_token}")
                         .get('https://discord.com/api/users/@me')
-                        .read_body()['id']
+                        .parse(:json)['id']
   end
 
   def user_connections
@@ -183,7 +183,7 @@ class CallbacksController < ApplicationController
     req = HTTP.auth("Bearer #{discord_token}")
               .get('https://discord.com/api/users/@me/connections')
 
-    resp = req.body
+    resp = req.parse(:json)
     log resp.inspect
 
     @user_connections = resp.map do |c|
