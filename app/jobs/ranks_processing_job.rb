@@ -8,7 +8,7 @@ class RanksProcessingJob < ApplicationJob
     rank_rows = []
 
     user_identities = Identity.where(identifier: users.keys, platform: platform)
-                              .pluck(%i[identifier user_id])
+                              .pluck(:identifier, :user_id)
                               .to_h
 
     users.each do |identifier, group|
