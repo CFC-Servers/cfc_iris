@@ -69,7 +69,7 @@ class CallbacksController < ApplicationController
   def process_connections
     log 'Processing connections'
 
-    user_connections.each_with_object(
+    processed_connections = user_connections.each_with_object(
       results: [],
       identity_rows: []
     ) do |connection, processed|
@@ -108,10 +108,12 @@ class CallbacksController < ApplicationController
       }
     end
 
-    processed[:results] << {
+    processed_connections[:results] << {
       platform: "discord",
       message: "successfully-linked"
     }
+
+    processed_connections
   end
 
   def user_id_map
