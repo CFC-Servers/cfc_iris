@@ -2,7 +2,7 @@
 
 class UsersController < AuthenticatedController
   def find_user
-    users = find_users_by_identities(find_params)
+    users = find_users_by_identities
     users_data = users.as_json(include: %i[identities ranks])
 
     render json: { users: users_data }
@@ -16,7 +16,7 @@ class UsersController < AuthenticatedController
   end
 
   def reset
-    users = find_users_by_identities(find_params)
+    users = find_users_by_identities
 
     users_data = users.as_json
     Rails.logger.info "Deleting the following users:"
@@ -33,8 +33,8 @@ class UsersController < AuthenticatedController
     params.permit(identities: %i[identifier platform])
   end
 
-  def find_users_by_identities(identities)
-    user_ids = identities.inject(Identity.includes(:user).none) do |memo, pair|
+  def find_users_by_identities
+    user_ids = find_params.identities.inject(Identity.includes(:user).none) do |memo, pair|
       memo.or(Identity.where(pair.slice(:identifier, :platform)))
     end.pluck(:user_id)
 
