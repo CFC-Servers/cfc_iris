@@ -145,9 +145,15 @@ class CallbacksController < ApplicationController
       scope: :identify
     }
 
-    HTTP.headers('Content-Type': 'application/x-www-form-urlencoded')
-        .post("#{DISCORD_API}/oauth2/token", form: data)
-        .parse['access_token']
+    req = HTTP.headers('Content-Type': 'application/x-www-form-urlencoded')
+    resp = req.post("#{DISCORD_API}/oauth2/token", form: data)
+    resp = resp.parse
+
+    puts resp.inspect
+
+    token = resp['access_token']
+
+    token
   end
 
   def discord_token
@@ -163,16 +169,31 @@ class CallbacksController < ApplicationController
   def user_connections
     return @user_connections if @user_connections
 
-    @user_connections = HTTP.auth("Bearer #{discord_token}")
-                            .get('https://discord.com/api/users/@me/connections')
-                            .parse
-                            .map do |c|
-                              {
-                                identifier: c['id'],
-                                platform: c['type'],
-                                verified: c['verified']
-                              }
-                            end
+    #@user_connections = HTTP.auth("Bearer #{discord_token}")
+    #                        .get('https://discord.com/api/users/@me/connections')
+    #                        .parse
+    #                        .map do |c|
+    #                          {
+    #                            identifier: c['id'],
+    #                            platform: c['type'],
+    #                            verified: c['verified']
+    #                          }
+    #                        end
+
+    req = HTTP.auth("Bearer #{discord_token}")
+              .get('https://discord.com/api/users/@me/connections')
+
+    resp = req.parse
+    puts resp.inspect
+
+    @user_connections = resp.map do |c|
+      puts c
+      {
+        identifier: c['id'],
+        platform: c['type'],
+        verified: c['verified']
+      }
+    end
 
     @user_connections << {
       identifier: discord_id,
