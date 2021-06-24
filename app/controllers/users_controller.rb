@@ -34,7 +34,7 @@ class UsersController < AuthenticatedController
   end
 
   def find_users_by_identities
-    user_ids = find_params.identities.inject(Identity.includes(:user).none) do |memo, pair|
+    user_ids = find_params["identities"].inject(Identity.includes(:user).none) do |memo, pair|
       memo.or(Identity.where(pair.slice(:identifier, :platform)))
     end.pluck(:user_id)
 
